@@ -1,0 +1,239 @@
+#!/usr/bin/env python2.7
+
+
+#  in the current directory, check one level down for git repos
+#  report on whether each one has:
+#    changes to working directory
+#    additions to index
+#    commits to repo that have not been pushed to remote
+#    commits to remote-tracking branch that have not been merged yet
+
+
+#  TODO
+#    commits to remote that have not been fetched
+#    list of remotes for each repo
+#    branches at each remote and their status wrt their upstream branch 
+
+
+#  new features to implement
+#    check if remote repo has new version we can get
+#    check if there is anything on the stash
+#       for each branch, list each stash with time
+#       git stash list --date=local
+#    make bjbRepo inherit from git.repo.
+
+import argparse
+import git
+import os
+import re
+import stat
+import subprocess
+import sys
+
+repo_objs = []
+
+def get_local_repo_names(curdir):
+    answer = []
+    direntries = os.listdir(curdir)
+    for entry in direntries:
+        candidate = os.path.join(curdir, entry)
+        gitdir = os.path.join(candidate, '.git')
+        if not os.access(gitdir, os.F_OK):
+            continue
+        answer.append(entry)
+
+    # answer = ['customer-code',]
+    return answer
+
+# class Remote(object):
+#     def __init__(self, args, repo, name):
+#         self.repo = repo
+#         self.name = name
+# 	self.branches = []
+# 	self.tags = []
+# 
+# 	# get the uri
+# 
+# 	# get the list of branches at the remote repo
+# 	# (remote access might be blocked)
+
+
+class bjbRepo(object):
+
+    def __init__(self, args, curdir, name):
+        self.name = name
+        self.path = os.path.join(curdir, name)
+
+	savedir = os.getcwd()
+	os.chdir(self.path)
+
+	self.repo = git.Repo(self.path)
+
+	self.branch = self.repo.head.ref.name
+
+	self.local_branches = [head.name for head in self.repo.heads if head.name != self.repo.head.ref.name]  # contains head branch
+
+        self.clean = not self.repo.is_dirty()  # False
+
+        # check if there is stuff in the index to commit
+	hcommit = self.repo.head.commit
+	idiff = hcommit.diff()
+	if len(idiff):
+	    self.commits_pending = True
+        else:
+	    self.commits_pending = False
+
+        self.ahead = False                # can push
+        self.remotes = [remote.name for remote in self.repo.remotes]
+
+	# check if there is stuff in working tree that is not in index
+
+	#  hmm, this might not be the right comparison - need to compare wd w/index, not index w/head
+
+	# wdiff = hcommit.diff(None)
+	wdiff = self.repo.index.diff(None)
+	if len(wdiff):
+	    self.changes_not_staged = True
+        else:
+	    self.changes_not_staged = False
+
+        super(bjbRepo, self).__init__()
+
+	os.chdir(savedir)
+
+
+    def status_wrt_remote_tracking_branch(self, branch_name):
+        # if there is no remote tracking branch, return ' '
+	br = self.repo.heads[branch_name]
+	rtb = br.tracking_branch()
+	if (rtb == None):
+	    return ' '
+	ahead = False
+	behind = False
+	diverged = False
+	no_merge_base = False
+
+	hcommit = br.commit
+	rtbcommit = rtb.commit
+	lca = self.repo.merge_base(hcommit, rtbcommit)
+	if (len(lca)):
+	    lca = lca[0]
+	else:
+	    lca = None
+
+	if hcommit != rtbcommit:
+            if lca == hcommit:
+	        behind = True
+	    elif lca == rtbcommit:
+	        ahead = True
+	    elif lca == None:
+	        no_merge_base = True
+	    else:
+	        diverged = True
+	
+	status = ' '
+        if ahead:
+            status = 'T'
+	if behind:
+	    status = 'L'
+	if diverged:
+	    status = 'Y'
+	if no_merge_base:
+	    status = '-'
+
+        return status
+
+    def __str__(self):
+        answer = '{nm:22} '.format(nm=self.name)
+        if self.clean:
+            clean = 'clean'
+            clean = '     '
+        else:
+            if self.changes_not_staged:
+                not_staged = 'wd'
+            else:
+                not_staged = '  '
+            if self.commits_pending:
+                pending = 'ix'
+            else:
+                pending = '  '
+            clean = '{} {}'.format(not_staged, pending)
+
+	# probably should do this in constructor rather than __str__, to be consistent
+	status = self.status_wrt_remote_tracking_branch(self.branch)
+        answer += '{c} {ss} {br}'.format(
+            c=clean,
+            ss=status,
+            br=self.branch)
+
+        if len(self.local_branches):
+                answer += ' ('
+                for branch in self.local_branches:
+		    # probably should do this in constructor rather than __str__, to be consistent
+		    # but then I'd have to have a per-branch place to store results
+		    br_status = self.status_wrt_remote_tracking_branch(branch)
+                    answer += ' {} {},'.format(br_status, branch)
+                answer = answer[:-1]  # remove last comma
+                answer += ' )'
+
+        return answer
+
+    def repo_string(self):
+        return ', '.join(self.remotes)
+
+def set_up_arg_parser():
+    argp = argparse.ArgumentParser(description='Check the status of your git-trees.')
+
+
+    argp.add_argument('-v', '--verbose',
+            help='verbose operation',
+            action='store_true');
+    argp.add_argument('-r', '--remotes',
+    			help='only show remotes',
+    			action='store_true');
+    argp.add_argument('-b', '--branches',
+    			help='show local branches',
+    			action='store_true');
+
+    argp.add_argument('-B', '--remotebranches',
+    			help='show remote branches for each remote NIY',
+    			action='store_true');
+
+    return argp
+
+argp = set_up_arg_parser()
+args = argp.parse_args()
+
+curdir = os.getcwd()
+names = get_local_repo_names(curdir)
+
+remote_re = re.compile(r'[^\s]+\s+refs/heads/(.*)$')
+
+for name in sorted(names):
+    #sys.stdout.write('{}\n'.format(name))
+    obj = bjbRepo(args, curdir, name)
+    repo_objs.append(obj)
+    if not args.remotes or args.verbose:
+        sys.stdout.write('{}\n'.format(obj))
+    else:
+        sys.stdout.write('{nm:22}  {rs}\n'.format(nm=obj.name, rs=obj.repo_string()))
+    if args.remotes:
+#        sys.stdout.write('\t{}\n'.format(obj.repo_string()));
+#	rbranches = []
+
+        if args.verbose:
+ 	    for rmt in obj.repo.remotes:
+	        sys.stdout.write('\t{}\n'.format(rmt))
+	        try:
+	            remote_says = obj.repo.git.ls_remote(rmt, heads=True)
+		    remote_says = remote_says.split('\n')
+
+	            for line in remote_says:
+	    	    # sys.stdout.write('\t{}\n'.format(line))
+	                mo = remote_re.match(line)
+	                if mo:
+	                    sys.stdout.write('\t\t{}\n'.format(mo.group(1)))
+	        except:
+		    sys.stdout.write('\t\t<unknown>\n'.format(rmt))
+
+
