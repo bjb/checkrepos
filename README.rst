@@ -20,3 +20,9 @@ Output:
          - changes in index
          - commits locally but not at remote
          - commits at remote but not locally.
+    Each git repo line shows which branch is currently checked out,
+        and which other local branches exist.
+        each of those branches has an indication if it is
+            ahead or behind the remote tracking branch.
+
+
