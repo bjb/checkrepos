@@ -19,7 +19,7 @@ Output:
          - changes in the working directory but not in index
          - changes in index
          - commits locally but not at remote
-         - commits at remote but not locally.
+         - commits at remote but not locally (not implemented fully yet, requires fetch first)
     Each git repo line shows which branch is currently checked out,
         and which other local branches exist.
         each of those branches has an indication if it is

@@ -6,12 +6,13 @@
 #    changes to working directory
 #    additions to index
 #    commits to repo that have not been pushed to remote
-#    commits to remote-tracking branch that have not been merged yet
+#    commits to remote-tracking branch that have not been merged yet (requires fetch first)
+#  can also show
+#    list of remotes for each repo
 
 
 #  TODO
 #    commits to remote that have not been fetched
-#    list of remotes for each repo
 #    branches at each remote and their status wrt their upstream branch 
 
 
