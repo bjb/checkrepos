@@ -50,13 +50,13 @@ def get_local_repo_names(curdir):
 #     def __init__(self, args, repo, name):
 #         self.repo = repo
 #         self.name = name
-# 	self.branches = []
-# 	self.tags = []
+#         self.branches = []
+#         self.tags = []
 # 
-# 	# get the uri
+#         # get the uri
 # 
-# 	# get the list of branches at the remote repo
-# 	# (remote access might be blocked)
+#         # get the list of branches at the remote repo
+#         # (remote access might be blocked)
 
 
 class bjbRepo(object):
@@ -65,82 +65,82 @@ class bjbRepo(object):
         self.name = name
         self.path = os.path.join(curdir, name)
 
-	savedir = os.getcwd()
-	os.chdir(self.path)
+        savedir = os.getcwd()
+        os.chdir(self.path)
 
-	self.repo = git.Repo(self.path)
+        self.repo = git.Repo(self.path)
 
-	self.branch = self.repo.head.ref.name
+        self.branch = self.repo.head.ref.name
 
-	self.local_branches = [head.name for head in self.repo.heads if head.name != self.repo.head.ref.name]  # contains head branch
+        self.local_branches = [head.name for head in self.repo.heads if head.name != self.repo.head.ref.name]  # contains head branch
 
         self.clean = not self.repo.is_dirty()  # False
 
         # check if there is stuff in the index to commit
-	hcommit = self.repo.head.commit
-	idiff = hcommit.diff()
-	if len(idiff):
-	    self.commits_pending = True
+        hcommit = self.repo.head.commit
+        idiff = hcommit.diff()
+        if len(idiff):
+            self.commits_pending = True
         else:
-	    self.commits_pending = False
+            self.commits_pending = False
 
         self.ahead = False                # can push
         self.remotes = [remote.name for remote in self.repo.remotes]
 
-	# check if there is stuff in working tree that is not in index
+        # check if there is stuff in working tree that is not in index
 
-	#  hmm, this might not be the right comparison - need to compare wd w/index, not index w/head
+        #  hmm, this might not be the right comparison - need to compare wd w/index, not index w/head
 
-	# wdiff = hcommit.diff(None)
-	wdiff = self.repo.index.diff(None)
-	if len(wdiff):
-	    self.changes_not_staged = True
+        # wdiff = hcommit.diff(None)
+        wdiff = self.repo.index.diff(None)
+        if len(wdiff):
+            self.changes_not_staged = True
         else:
-	    self.changes_not_staged = False
+            self.changes_not_staged = False
 
         super(bjbRepo, self).__init__()
 
-	os.chdir(savedir)
+        os.chdir(savedir)
 
 
     def status_wrt_remote_tracking_branch(self, branch_name):
         # if there is no remote tracking branch, return ' '
-	br = self.repo.heads[branch_name]
-	rtb = br.tracking_branch()
-	if (rtb == None):
-	    return ' '
-	ahead = False
-	behind = False
-	diverged = False
-	no_merge_base = False
+        br = self.repo.heads[branch_name]
+        rtb = br.tracking_branch()
+        if (rtb == None):
+            return ' '
+        ahead = False
+        behind = False
+        diverged = False
+        no_merge_base = False
 
-	hcommit = br.commit
-	rtbcommit = rtb.commit
-	lca = self.repo.merge_base(hcommit, rtbcommit)
-	if (len(lca)):
-	    lca = lca[0]
-	else:
-	    lca = None
+        hcommit = br.commit
+        rtbcommit = rtb.commit
+        lca = self.repo.merge_base(hcommit, rtbcommit)
+        if (len(lca)):
+            lca = lca[0]
+        else:
+            lca = None
 
-	if hcommit != rtbcommit:
+        if hcommit != rtbcommit:
             if lca == hcommit:
-	        behind = True
-	    elif lca == rtbcommit:
-	        ahead = True
-	    elif lca == None:
-	        no_merge_base = True
-	    else:
-	        diverged = True
-	
-	status = ' '
+                behind = True
+            elif lca == rtbcommit:
+                ahead = True
+            elif lca == None:
+                no_merge_base = True
+            else:
+                diverged = True
+        
+        status = ' '
         if ahead:
             status = 'T'
-	if behind:
-	    status = 'L'
-	if diverged:
-	    status = 'Y'
-	if no_merge_base:
-	    status = '-'
+        if behind:
+            status = 'L'
+        if diverged:
+            status = 'Y'
+        if no_merge_base:
+            status = '-'
 
         return status
 
@@ -160,8 +160,8 @@ class bjbRepo(object):
                 pending = '  '
             clean = '{} {}'.format(not_staged, pending)
 
-	# probably should do this in constructor rather than __str__, to be consistent
-	status = self.status_wrt_remote_tracking_branch(self.branch)
+        # probably should do this in constructor rather than __str__, to be consistent
+        status = self.status_wrt_remote_tracking_branch(self.branch)
         answer += '{c} {ss} {br}'.format(
             c=clean,
             ss=status,
@@ -170,9 +170,9 @@ class bjbRepo(object):
         if len(self.local_branches):
                 answer += ' ('
                 for branch in self.local_branches:
-		    # probably should do this in constructor rather than __str__, to be consistent
-		    # but then I'd have to have a per-branch place to store results
-		    br_status = self.status_wrt_remote_tracking_branch(branch)
+                    # probably should do this in constructor rather than __str__, to be consistent
+                    # but then I'd have to have a per-branch place to store results
+                    br_status = self.status_wrt_remote_tracking_branch(branch)
                     answer += ' {} {},'.format(br_status, branch)
                 answer = answer[:-1]  # remove last comma
                 answer += ' )'
@@ -190,15 +190,15 @@ def set_up_arg_parser():
             help='verbose operation',
             action='store_true');
     argp.add_argument('-r', '--remotes',
-    			help='only show remotes',
-    			action='store_true');
+                            help='only show remotes',
+                            action='store_true');
     argp.add_argument('-b', '--branches',
-    			help='show local branches',
-    			action='store_true');
+                            help='show local branches',
+                            action='store_true');
 
     argp.add_argument('-B', '--remotebranches',
-    			help='show remote branches for each remote NIY',
-    			action='store_true');
+                            help='show remote branches for each remote NIY',
+                            action='store_true');
 
     return argp
 
@@ -220,21 +220,21 @@ for name in sorted(names):
         sys.stdout.write('{nm:22}  {rs}\n'.format(nm=obj.name, rs=obj.repo_string()))
     if args.remotes:
 #        sys.stdout.write('\t{}\n'.format(obj.repo_string()));
-#	rbranches = []
+#        rbranches = []
 
         if args.verbose:
- 	    for rmt in obj.repo.remotes:
-	        sys.stdout.write('\t{}\n'.format(rmt))
-	        try:
-	            remote_says = obj.repo.git.ls_remote(rmt, heads=True)
-		    remote_says = remote_says.split('\n')
+             for rmt in obj.repo.remotes:
+                sys.stdout.write('\t{}\n'.format(rmt))
+                try:
+                    remote_says = obj.repo.git.ls_remote(rmt, heads=True)
+                    remote_says = remote_says.split('\n')
 
-	            for line in remote_says:
-	    	    # sys.stdout.write('\t{}\n'.format(line))
-	                mo = remote_re.match(line)
-	                if mo:
-	                    sys.stdout.write('\t\t{}\n'.format(mo.group(1)))
-	        except:
-		    sys.stdout.write('\t\t<unknown>\n'.format(rmt))
+                    for line in remote_says:
+                        # sys.stdout.write('\t{}\n'.format(line))
+                        mo = remote_re.match(line)
+                        if mo:
+                            sys.stdout.write('\t\t{}\n'.format(mo.group(1)))
+                except:
+                    sys.stdout.write('\t\t<unknown>\n'.format(rmt))
 
 
